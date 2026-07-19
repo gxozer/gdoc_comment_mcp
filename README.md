@@ -64,13 +64,51 @@ token is ever revoked or deleted.
 
 ## 4. Wire it into Claude Code
 
+The server's command always points at wherever *this* repo was cloned — the
+venv and `server.py` live here, not in whatever project you happen to be
+registering the tool for. Set that path once:
+
 ```bash
-claude mcp add gdoc-comments -e PYTHONPATH=/Users/gozer/common/ws/gdoc_comment_mcp -- /Users/gozer/common/ws/gdoc_comment_mcp/.venv/bin/python /Users/gozer/common/ws/gdoc_comment_mcp/gdoc_mcp/server.py
+GDOC_MCP_DIR=/absolute/path/to/gdoc_comment_mcp   # wherever you cloned this repo
 ```
 
-`PYTHONPATH` must point at this directory — `server.py` is launched directly
+`PYTHONPATH` must point at `$GDOC_MCP_DIR` — `server.py` is launched directly
 (not via `-m`), so without it Python can't find the `gdoc_mcp` package it's
 part of, and the server crashes immediately on every connection attempt.
+
+### Local scope (private to you, this project only)
+
+The default for `claude mcp add`. Run from anywhere, including a different
+project's directory — only `$GDOC_MCP_DIR` needs to be right, not your `pwd`:
+
+```bash
+claude mcp add gdoc-comments -e PYTHONPATH="$GDOC_MCP_DIR" -- "$GDOC_MCP_DIR/.venv/bin/python" "$GDOC_MCP_DIR/gdoc_mcp/server.py"
+```
+
+### User scope (private to you, available in every project)
+
+Add `-s user` so the server shows up regardless of which directory you launch
+`claude` from — no need to re-register it per project:
+
+```bash
+claude mcp add gdoc-comments -s user -e PYTHONPATH="$GDOC_MCP_DIR" -- "$GDOC_MCP_DIR/.venv/bin/python" "$GDOC_MCP_DIR/gdoc_mcp/server.py"
+```
+
+### Project scope (shared with anyone who clones a given project)
+
+Add `-s project` while standing inside *that other project's* directory —
+this writes a `.mcp.json` there (not in `gdoc_comment_mcp`), which you'd
+commit so teammates get the server automatically when they open that project
+in Claude Code:
+
+```bash
+cd /path/to/some/other/project
+claude mcp add gdoc-comments -s project -e PYTHONPATH="$GDOC_MCP_DIR" -- "$GDOC_MCP_DIR/.venv/bin/python" "$GDOC_MCP_DIR/gdoc_mcp/server.py"
+```
+
+Each teammate still needs to complete their own [Google Cloud
+setup](#1-google-cloud-setup-one-time) and [authenticate](#3-authenticate-one-time-interactive) locally —
+`.mcp.json` only wires up the server command, not credentials.
 
 ## Tools exposed
 
