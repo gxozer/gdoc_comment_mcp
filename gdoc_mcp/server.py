@@ -66,6 +66,30 @@ def replace_text_in_doc(
 
 
 @mcp.tool()
+def linkify_text_in_doc(document_id: str, display_text: str, url: str) -> dict:
+    """Turn every existing bare occurrence of `display_text` into a real,
+    clickable hyperlink pointing at `url`, in place — the visible text is
+    unchanged, only its link style is set. Use this instead of pasting a
+    URL as plain text next to a reference.
+    """
+    doc_id = _resolve_document_id(document_id)
+    count = docs_api.linkify_text(_docs_service(), doc_id, display_text, url)
+    return {"status": "ok", "document_id": doc_id, "occurrences_linked": count}
+
+
+@mcp.tool()
+def fix_url_suffix_to_link_in_doc(document_id: str, display_text: str, url: str) -> dict:
+    """Clean up the specific 'ugly annotation' pattern "{display_text} ({url})"
+    left in a doc by an earlier plain-text workaround: removes the visible
+    " (url)" suffix and makes `display_text` itself a real hyperlink to
+    `url` instead.
+    """
+    doc_id = _resolve_document_id(document_id)
+    count = docs_api.replace_url_suffix_with_link(_docs_service(), doc_id, display_text, url)
+    return {"status": "ok", "document_id": doc_id, "occurrences_fixed": count}
+
+
+@mcp.tool()
 def list_doc_comments(document_id: str, include_resolved: bool = True) -> list:
     """List all comments (with their replies) on a Google Doc."""
     doc_id = _resolve_document_id(document_id)
