@@ -284,6 +284,44 @@ def test_replace_url_suffix_with_link_multiple_occurrences_processed_in_reverse(
     assert first_delete["startIndex"] > second_delete["startIndex"]
 
 
+def test_replace_url_suffix_with_link_can_target_a_different_url_than_matched():
+    """Covers fixing a stale reference: text still says '(old url)' (e.g. a
+    since-deleted file), but the fix should point the resulting link at a
+    different, current url instead of re-linking to the old one."""
+    text = "See foo.md (https://old-url.example/doc) for details\n"
+    doc = {"body": {"content": [indexed_paragraph(text, start_index=1)]}}
+    service = make_service(get_return=doc, batch_return={})
+
+    count = docs_api.replace_url_suffix_with_link(
+        service,
+        "doc123",
+        "foo.md",
+        "https://old-url.example/doc",
+        link_url="https://new-url.example/doc",
+    )
+
+    assert count == 1
+    ugly = "foo.md (https://old-url.example/doc)"
+    start = 1 + text.index(ugly)
+    end = start + len(ugly)
+    service.documents.return_value.batchUpdate.assert_called_once_with(
+        documentId="doc123",
+        body={
+            "requests": [
+                {"deleteContentRange": {"range": {"startIndex": start, "endIndex": end}}},
+                {"insertText": {"location": {"index": start}, "text": "foo.md"}},
+                {
+                    "updateTextStyle": {
+                        "range": {"startIndex": start, "endIndex": start + len("foo.md")},
+                        "textStyle": {"link": {"url": "https://new-url.example/doc"}},
+                        "fields": "link",
+                    }
+                },
+            ]
+        },
+    )
+
+
 def test_replace_url_suffix_with_link_no_match_skips_batch_update():
     doc = {"body": {"content": [indexed_paragraph("nothing here\n", start_index=1)]}}
     service = make_service(get_return=doc, batch_return={})

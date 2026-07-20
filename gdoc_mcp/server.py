@@ -78,14 +78,22 @@ def linkify_text_in_doc(document_id: str, display_text: str, url: str) -> dict:
 
 
 @mcp.tool()
-def fix_url_suffix_to_link_in_doc(document_id: str, display_text: str, url: str) -> dict:
-    """Clean up the specific 'ugly annotation' pattern "{display_text} ({url})"
+def fix_url_suffix_to_link_in_doc(
+    document_id: str, display_text: str, find_url: str, link_url: str = ""
+) -> dict:
+    """Clean up the specific 'ugly annotation' pattern "{display_text} ({find_url})"
     left in a doc by an earlier plain-text workaround: removes the visible
-    " (url)" suffix and makes `display_text` itself a real hyperlink to
-    `url` instead.
+    " (url)" suffix and makes `display_text` itself a real hyperlink.
+
+    By default the link points at `find_url` (the common case). Pass
+    `link_url` to fix a stale reference instead — the text still names an
+    old/deleted url, but the resulting link should point at its current
+    replacement.
     """
     doc_id = _resolve_document_id(document_id)
-    count = docs_api.replace_url_suffix_with_link(_docs_service(), doc_id, display_text, url)
+    count = docs_api.replace_url_suffix_with_link(
+        _docs_service(), doc_id, display_text, find_url, link_url or None
+    )
     return {"status": "ok", "document_id": doc_id, "occurrences_fixed": count}
 
 
