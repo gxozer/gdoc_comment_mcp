@@ -175,18 +175,28 @@ def linkify_text(service: Resource, document_id: str, display_text: str, url: st
 
 
 def replace_url_suffix_with_link(
-    service: Resource, document_id: str, display_text: str, url: str
+    service: Resource,
+    document_id: str,
+    display_text: str,
+    find_url: str,
+    link_url: str | None = None,
 ) -> int:
-    """Finds every occurrence of the literal pattern "{display_text} ({url})"
+    """Finds every occurrence of the literal pattern "{display_text} ({find_url})"
     (the plain-text 'ugly annotation' form left by an earlier workaround),
     replaces it with just `display_text`, and makes that text a real
-    hyperlink to `url`. Returns the number of occurrences fixed.
+    hyperlink to `link_url`. Returns the number of occurrences fixed.
+
+    `link_url` defaults to `find_url` (the common case: clean up the
+    annotation and link to the same url it names). Pass a different
+    `link_url` to fix a stale reference — text still names an old/deleted
+    url, but the resulting link should point at its current replacement.
 
     Occurrences are processed in descending index order within the batch so
     that shrinking an earlier-in-document occurrence never invalidates the
     still-pending, higher-index occurrences' precomputed ranges.
     """
-    ugly = f"{display_text} ({url})"
+    link_url = link_url if link_url is not None else find_url
+    ugly = f"{display_text} ({find_url})"
     document = service.documents().get(documentId=document_id).execute()
     ranges = sorted(find_text_ranges(document, ugly), key=lambda r: r[0], reverse=True)
     if not ranges:
@@ -196,7 +206,7 @@ def replace_url_suffix_with_link(
     for start, end in ranges:
         requests.append({"deleteContentRange": {"range": {"startIndex": start, "endIndex": end}}})
         requests.append({"insertText": {"location": {"index": start}, "text": display_text}})
-        requests.append(_set_link_request(start, start + len(display_text), url))
+        requests.append(_set_link_request(start, start + len(display_text), link_url))
 
     service.documents().batchUpdate(documentId=document_id, body={"requests": requests}).execute()
     return len(ranges)
